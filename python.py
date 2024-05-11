@@ -102,159 +102,13 @@ def open_userwindow(user_id):
     update_table(tree, new_windowUser, user_id, role)
     
     tree.bind("<Double-1>", lambda event: open_request_window(event, tree))
-
-def open_menagerwindow(user_id):
-    new_windowMenager = Tk()
-    new_windowMenager.title("Окно менаджера")
-    new_windowMenager.attributes('-fullscreen',True)
-     # Добавление кнопки создания заявки
-    btn_save = Button(new_windowMenager, text='Создать заявку', command=lambda: open_windowTask(user_id))
-    btn_save.pack()
     
-    # Создание и настройка Treeview
-    tree = ttk.Treeview(new_windowMenager, columns=("Id", "Date", "Equipment", "Type", "Description", "Client", "Status", "Employ_Data"), show="headings")
-    
-    tree.column("#0", width=0, stretch="NO")
-    tree.column("Id", anchor="center", width=50)
-    tree.column("Date", anchor="w", width=100)
-    tree.column("Equipment", anchor="center", width=150)
-    tree.column("Type", anchor="center", width=160)
-    tree.column("Description", anchor="center", width=360)
-    tree.column("Client", anchor="center", width=50)
-    tree.column("Status", anchor="center", width=260)
-    tree.column("Employ_Data", anchor="center", width=260)
-    
-    tree.heading("Id", text="ID")
-    tree.heading("Date", text="Дата заявки")
-    tree.heading("Equipment", text="Название оборудования")
-    tree.heading("Type", text="Тип")
-    tree.heading("Description", text="Описание")
-    tree.heading("Client", text="Id клиент")
-    tree.heading("Status", text="Статус")
-    tree.heading("Employ_Data", text="Обслуживающий заявку")
-    
-    tree.pack(fill="both", expand=True)
-
-    # Загрузка данных из базы данных и добавление только соответствующих user_id записей в Treeview
-    connectionStr = 'DRIVER={ODBC Driver 17 for SQL Server};SERVER=.;DATABASE=Account;Trusted_Connection=yes'
-    connection = py.connect(connectionStr)
-    dbCursor = connection.cursor()
-    dbCursor.execute("SELECT Id_Server, Data_Server, Equipment, Type_Server, Desc_Server, Id_Client, Status_Server, Employ_Data FROM Servers")
-    rows = dbCursor.fetchall()
-
-    for row in rows:
-        tree.insert("", "end", values=list(row))  # Используем список вместо кортежа
-
-    connection.close()
-
-    role = 3
-    update_table(tree, new_windowMenager, user_id, role)
-    tree.bind("<Double-1>", lambda event: open_request_window_meneger(event, tree))
-
-def get_user_logins_with_role_two():
-    logins = []
-    try:
-        connectionStr = 'DRIVER={ODBC Driver 17 for SQL Server};SERVER=.;DATABASE=Account;Trusted_Connection=yes'
-        conn = py.connect(connectionStr)
-        cursor = conn.cursor()
-        cursor.execute("SELECT Login FROM Users WHERE Role = 2")
-        rows = cursor.fetchall()
-        for row in rows:
-            logins.append(row[0])
-        conn.close()
-    except py.Error as ex:
-                messagebox.showerror("Ошибка", f"Ошибка при получении логинов: {ex}")
-    return logins
-
-def open_request_window_meneger(event, tree):
-    try:
-        item = tree.selection()[0]  # Получаем выбранный элемент
-        request_data = tree.item(item, "values")  # Получаем данные о выбранной заявке
-        if request_data:
-            # Создаем новое окно для редактирования заявки
-            edit_window = Tk()
-            edit_window.title("Редактировать заявку")
-
-            # Функция для обновления описания в базе данных
-            def update_description():
-                id_server = request_data[0]  # Получаем Id_Server
-                new_status = status_var.get()  # Получаем выбранный статус
-                new_equipment = equipment_entry.get()  # Получаем новое название оборудования
-                new_type = type_server_entry.get()  # Получаем новый ти
-                selected_login = user_var.get()  # Получаем выбранный логин
-                try:
-                    connectionStr = 'DRIVER={ODBC Driver 17 for SQL Server};SERVER=.;DATABASE=Account;Trusted_Connection=yes'
-                    conn = py.connect(connectionStr)
-                    cursor = conn.cursor()
-                    # Обновляем данные в базе данных
-                    cursor.execute("UPDATE Servers SET Status_Server = ?, Equipment = ?, Type_Server = ?, Employ_Data = ? WHERE Id_Server = ?", 
-                                ( new_status, new_equipment, new_type, id_server, selected_login))
-                    conn.commit()  # Применяем изменения
-                    conn.close()
-                    messagebox.showinfo("Успех", "Данные успешно обновлены.")
-                    edit_window.destroy()  # Закрываем окно редактирования после успешного обновления
-                except py.Error as ex:
-                    messagebox.showerror("Ошибка", f"Ошибка при обновлении данных: {ex}")
-
-            # Отображаем существующие данные в окне редактирования
-            Label(edit_window, text="ID:").grid(row=0, column=0)
-            Label(edit_window, text=request_data[0]).grid(row=0, column=1)
-
-            Label(edit_window, text="Дата:").grid(row=1, column=0)
-            Label(edit_window, text=request_data[1]).grid(row=1, column=1)
-
-            equipment_label = Label(edit_window, text='Название оборудования')
-            equipment_label.grid(row=4, column=0)
-            equipment_entry = Entry(edit_window)
-            equipment_entry.insert(0, request_data[2])  # Вставляем существующее название оборудования
-            equipment_entry.grid(row=4, column=1)
-
-            type_label = Label(edit_window, text='Тип')
-            type_label.grid(row=5, column=0)
-            type_server_entry = Entry(edit_window)
-            type_server_entry.insert(0, request_data[3])  # Вставляем существующий тип
-            type_server_entry.grid(row=5, column=1)
-
-            status_label = Label(edit_window, text='Статус')
-            status_label.grid(row=6, column=0)
-            status_var = StringVar(edit_window)
-            status_var.set(request_data[6])  # Устанавливаем существующий статус
-            status_dropdown = OptionMenu(edit_window, status_var, "в ожидании", "выполнено", "не выполнено")
-            status_dropdown.grid(row=6, column=1)
-
-            # Получаем логины пользователей с ролью 2
-            user_logins = get_user_logins_with_role_two()
-
-            if not user_logins:
-                messagebox.showwarning("Предупреждение", "Не удалось получить логины с ролью 2.")
-                edit_window.destroy()
-                return
-
-            # Устанавливаем первый логин по умолчанию
-            user_var = StringVar(edit_window)
-            user_var.set(user_logins[0])
-
-            # Создаем выпадающий список из логинов
-            user_dropdown = OptionMenu(edit_window, user_var, *user_logins)
-            user_dropdown.grid(row=8, column=1)
-
-            desc_server_label = Label(edit_window, text='Описание:')
-            desc_server_label.grid(row=7, column=0)
-            Label(edit_window, text=request_data[4]).grid(row=7, column=1)
-            # Кнопка для сохранения изменений
-            Button(edit_window, text="Сохранить изменения", command=update_description).grid(row=8, columnspan=2)
-
-    except IndexError:
-        messagebox.showerror("Ошибка", "Выберите заявку для редактирования.")
-    except py.Error as ex:
-        messagebox.showerror("Ошибка", f"Ошибка при открытии окна редактирования: {ex}")
-
 
 def open_employwindow(user_id):
     new_windowEmploy = Tk()
     new_windowEmploy.title("Окно сотрудника")
     new_windowEmploy.attributes('-fullscreen',True)
-    
+
     # Добавление кнопки создания заявки
     btn_save = Button(new_windowEmploy, text='Создать заявку', command=lambda: open_windowTask(user_id))
     btn_save.pack()
@@ -370,7 +224,171 @@ def open_request_window_employ(event, tree):
         edit_window.mainloop()
     else:
         messagebox.showinfo("Ошибка", "Не выбрана заявка для редактирования")
- 
+
+
+
+def open_menagerwindow(user_id):
+    new_windowMeneger = Tk()
+    new_windowMeneger.title("Окно менеджера")
+    new_windowMeneger.attributes('-fullscreen',True)
+    
+    # Создание и настройка Treeview
+    tree = ttk.Treeview(new_windowMeneger, columns=("Id", "Date", "Equipment", "Type", "Description", "Client", "Status", "Employ_Data"), show="headings")
+    
+    tree.column("#0", width=0, stretch="NO")
+    tree.column("Id", anchor="center", width=50)
+    tree.column("Date", anchor="w", width=100)
+    tree.column("Equipment", anchor="center", width=150)
+    tree.column("Type", anchor="center", width=160)
+    tree.column("Description", anchor="center", width=360)
+    tree.column("Client", anchor="center", width=50)
+    tree.column("Status", anchor="center", width=260)
+    tree.column("Employ_Data", anchor="center", width=260)
+    
+    tree.heading("Id", text="ID")
+    tree.heading("Date", text="Дата заявки")
+    tree.heading("Equipment", text="Название оборудования")
+    tree.heading("Type", text="Тип")
+    tree.heading("Description", text="Описание")
+    tree.heading("Client", text="Id клиент")
+    tree.heading("Status", text="Статус")
+    tree.heading("Employ_Data", text="Сотрудник")
+    
+    tree.pack(fill="both", expand=True)
+
+    # Загрузка данных из базы данных и добавление только соответствующих user_id записей в Treeview
+    connectionStr = 'DRIVER={ODBC Driver 17 for SQL Server};SERVER=.;DATABASE=Account;Trusted_Connection=yes'
+    connection = py.connect(connectionStr)
+    dbCursor = connection.cursor()
+    dbCursor.execute("SELECT Id_Server, Data_Server, Equipment, Type_Server, Desc_Server, Id_Client, Status_Server FROM Servers")
+    rows = dbCursor.fetchall()
+
+    for row in rows:
+        tree.insert("", "end", values=list(row))  # Используем список вместо кортежа
+
+    connection.close()
+
+    role = 2
+    update_table(tree, new_windowMeneger, user_id, role)
+    tree.bind("<Double-1>", lambda event: open_request_window_manager(event, tree))
+
+
+def open_request_window_manager(event, tree):   
+    item = tree.selection()
+    if item:
+        request_data = tree.item(item, "values")
+        if request_data:
+            assign_window = Tk()
+            assign_window.title("Назначить сотрудника")
+            
+            def assign_employee():
+                selected_employee = employee_var.get()
+                if selected_employee:
+                    try:
+                        connectionStr = 'DRIVER={ODBC Driver 17 for SQL Server};SERVER=.;DATABASE=Account;Trusted_Connection=yes'
+                        conn = py.connect(connectionStr)
+                        cursor = conn.cursor()
+                        cursor.execute("UPDATE Servers SET Employ_Data = ? WHERE Id_Server = ?", 
+                                       (selected_employee, request_data[0]))
+                        conn.commit()
+                        conn.close()
+                        messagebox.showinfo("Успех", "Сотрудник успешно назначен.")
+                        assign_window.destroy()
+                    except py.Error as ex:
+                        messagebox.showerror("Ошибка", f"Ошибка при назначении сотрудника: {ex}")
+                else:
+                    messagebox.showwarning("Предупреждение", "Пожалуйста, выберите сотрудника.")
+            
+            try:
+                connectionStr = 'DRIVER={ODBC Driver 17 for SQL Server};SERVER=.;DATABASE=Account;Trusted_Connection=yes'
+                conn = py.connect(connectionStr)
+                cursor = conn.cursor()
+                cursor.execute("SELECT Login FROM [User] WHERE Role = 2")
+                employees = [row[0] for row in cursor.fetchall()]
+                conn.close()
+            except py.Error as ex:
+                messagebox.showerror("Ошибка", f"Ошибка при загрузке данных о сотрудниках: {ex}")
+                employees = []
+
+            assign_window.grid_rowconfigure(0, weight=1)
+            assign_window.grid_columnconfigure(0, weight=1)
+
+            Label(assign_window, text="Выберите сотрудника:").grid(row=0, column=0, padx=5, pady=5)
+            employee_var = StringVar(assign_window)
+            employee_var.set(employees[0] if employees else "")  # По умолчанию выбирается первый сотрудник
+            employee_dropdown = OptionMenu(assign_window, employee_var, *employees)
+            employee_dropdown.grid(row=0, column=1, padx=5, pady=5)
+
+            Button(assign_window, text="Назначить сотрудника", command=assign_employee).grid(row=1, column=0, columnspan=2, padx=5, pady=5)
+            Button(assign_window, text="Отмена", command=assign_window.destroy).grid(row=2, column=0, columnspan=2, padx=5, pady=5)
+
+            assign_window.mainloop()
+        else:
+            messagebox.showinfo("Ошибка", "Не выбрана заявка для назначения сотрудника")
+    else:
+        messagebox.showinfo("Ошибка", "Не выбрана заявка для назначения сотрудника")
+
+    item = tree.selection()[0]  # Получаем выбранный элемент
+    request_data = tree.item(item, "values")  # Получаем данные о выбранной заявке
+    if request_data:
+        # Создаем новое окно для назначения сотрудника
+        assign_window = Tk()
+        assign_window.title("Назначить сотрудника")
+        
+        # Функция для назначения сотрудника на заявку
+        def assign_employee():
+            selected_employee = employee_var.get()  # Получаем выбранного сотрудника
+            if selected_employee:
+                try:
+                    connectionStr = 'DRIVER={ODBC Driver 17 for SQL Server};SERVER=.;DATABASE=Account;Trusted_Connection=yes'
+                    conn = py.connect(connectionStr)
+                    cursor = conn.cursor()
+                    # Обновляем данные в базе данных
+                    cursor.execute("UPDATE Servers SET Employ_Data = ? WHERE Id_Server = ?", 
+                                   (selected_employee, request_data[0]))
+                    conn.commit()  # Применяем изменения
+                    conn.close()
+                    messagebox.showinfo("Успех", "Сотрудник успешно назначен.")
+                    assign_window.destroy()  # Закрываем окно назначения после успешного назначения
+                except py.Error as ex:
+                    messagebox.showerror("Ошибка", f"Ошибка при назначении сотрудника: {ex}")
+            else:
+                messagebox.showwarning("Предупреждение", "Пожалуйста, выберите сотрудника.")
+        
+        # Загрузка данных о сотрудниках из базы данных
+        try:
+            connectionStr = 'DRIVER={ODBC Driver 17 for SQL Server};SERVER=.;DATABASE=Account;Trusted_Connection=yes'
+            conn = py.connect(connectionStr)
+            cursor = conn.cursor()
+            # Получаем список сотрудников с ролью 2 (сотрудники)
+            cursor.execute("SELECT Login FROM [User] WHERE Role = 2")
+            employees = [row[1] for row in cursor.fetchall()]
+            conn.close()
+        except py.Error as ex:
+            messagebox.showerror("Ошибка", f"Ошибка при загрузке данных о сотрудниках: {ex}")
+            employees = []
+
+        # Отображаем выпадающий список с сотрудниками
+        Label(assign_window, text="Выберите сотрудника:").grid(row=0, column=0)
+        employee_var = StringVar(assign_window)
+        employee_dropdown = OptionMenu(assign_window, employee_var, *employees)
+        employee_dropdown.grid(row=0, column=1)
+
+        # Кнопка для назначения сотрудника
+        Button(assign_window, text="Назначить сотрудника", command=assign_employee).grid(row=1, columnspan=2)
+        
+        # Функция для закрытия окна назначения
+        def close_assign_window():
+            assign_window.destroy()
+        
+        # Кнопка для закрытия окна назначения
+        Button(assign_window, text="Отмена", command=close_assign_window).grid(row=2, columnspan=2)
+        
+        # Отображаем окно назначения
+        assign_window.mainloop()
+    else:
+        messagebox.showinfo("Ошибка", "Не выбрана заявка для назначения сотрудника")
+
 
 def update_table(tree, window, user_id, role):
     try:
